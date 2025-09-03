@@ -21,9 +21,11 @@ def watermark_text(
     img: Image.Image,
     text: str,
     pos: Literal["top-left", "top-right", "bottom-left", "bottom-right", "center"],
-    opacity: float = 0.3,
-    font_size: int = 18,
-    margin_px: int = 12,
+    opacity: float = 0.8,  # Increased default opacity for better visibility
+    font_size: int = 60,   # Large font as new default
+    margin_px: int = 15,   # Slightly larger margin for large font
+    stroke_width: int = 2, # 2px stroke as new default
+    stroke_color: tuple = (0, 0, 0),  # Black stroke
 ) -> Image.Image:
     """
     Adds a text watermark to an image.
@@ -58,6 +60,19 @@ def watermark_text(
         x, y = (base.width - text_width) / 2, (base.height - text_height) / 2
 
     fill_opacity = int(255 * opacity)
+    
+    # Draw stroke/outline if requested
+    if stroke_width > 0:
+        stroke_opacity = int(255 * opacity)  # Same opacity for stroke
+        stroke_fill = (*stroke_color, stroke_opacity)
+        
+        # Draw stroke by drawing text slightly offset in all directions
+        for dx in range(-stroke_width, stroke_width + 1):
+            for dy in range(-stroke_width, stroke_width + 1):
+                if dx != 0 or dy != 0:  # Don't draw at center position yet
+                    draw.text((x + dx, y + dy), text, font=font, fill=stroke_fill)
+    
+    # Draw the main text on top
     draw.text((x, y), text, font=font, fill=(255, 255, 255, fill_opacity))
 
     return Image.alpha_composite(base, txt_layer).convert("RGB")

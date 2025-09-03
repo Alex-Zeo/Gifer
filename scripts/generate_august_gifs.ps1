@@ -1,6 +1,7 @@
 # PowerShell script to generate GIFs for all days in August 2025
 # Run this from the project root directory
 # Features enhanced page load waiting for reliable map screenshots
+# Uses large 60pt watermarks with black stroke for maximum visibility
 
 param(
     [switch]$OverwriteScreenshots = $false,
@@ -60,7 +61,7 @@ Write-Host "Screenshots completed successfully!" -ForegroundColor Green
 Write-Host "Step 2: Generating GIF from all August 2025 screenshots..." -ForegroundColor Cyan
 
 $inputPath = Join-Path $converterDir "gpsjam-2025-08"
-$outputPath = Join-Path $resultsDir "gpsjam-august-2025.gif"
+$outputPath = Join-Path $resultsDir "gpsjam-august-2025-large-stroke.gif"
 
 if (-not (Test-Path $inputPath)) {
     Write-Error "Screenshot directory not found: $inputPath"
@@ -82,7 +83,12 @@ $gifArgs = @(
     "--input-dir", $inputPath,
     "--output-path", $outputPath,
     "--seconds-per-image", $SecondsPerImage,
-    "--order-strategy", "date"
+    "--order-strategy", "date",
+    "--watermark-prefix", "GPSJAM",
+    "--watermark-position", "top-left",
+    "--compress",
+    "--max-size-mb", "14.99",
+    "--rename-output", "GPSJAM_AUG_2025"
 )
 
 if ($UploadToDrive) {

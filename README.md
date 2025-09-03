@@ -77,8 +77,11 @@ Capture GPS interference data for any month:
 
 **PowerShell (Windows):**
 ```powershell
-# Generate GIFs for August 2025 GPS interference data
+# Generate GIFs for August 2025 (specific script)
 pwsh -ExecutionPolicy Bypass -File scripts/generate_august_gifs.ps1 -SecondsPerImage 0.3
+
+# Generate GIFs for any month (universal script)
+pwsh -ExecutionPolicy Bypass -File scripts/generate_month_gifs.ps1 -StartDate "2025-09-01" -EndDate "2025-09-30" -SecondsPerImage 0.3
 ```
 
 **Python (Cross-platform):**
@@ -86,8 +89,9 @@ pwsh -ExecutionPolicy Bypass -File scripts/generate_august_gifs.ps1 -SecondsPerI
 # Capture screenshots for date range
 python scripts/scrape_screenshots.py --start-date 2025-08-01 --end-date 2025-08-31
 
-# Generate GIF from screenshots
-python scripts/make_gif.py --input-dir "converter/images/gpsjam-2025-08" --output-path "results/gifs/august-2025.gif" --seconds-per-image 0.3
+# Generate GIF from screenshots (with large watermarks and infinite loop)
+python scripts/make_gif.py --input-dir "converter/images/gpsjam-2025-08" --output-path "results/gifs/august-2025.gif" --seconds-per-image 0.3 --watermark-prefix "GPSJAM"
+# Now uses 60pt font with 2px black stroke by default: "GPSJAM 08-01-25", "GPSJAM 08-02-25", etc.
 ```
 
 #### 🎬 Custom Website Monitoring
