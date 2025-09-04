@@ -11,6 +11,7 @@ Implements 2025 best practices for GIF compression:
 
 import os
 import tempfile
+import shutil
 from pathlib import Path
 from typing import Optional, Tuple, List
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from PIL import Image, ImageSequence
 import imageio
 
 from app.logger import get_logger
+from .external_tools import ExternalToolManager, ExternalToolSettings
 
 logger = get_logger(__name__)
 
@@ -44,8 +46,13 @@ class CompressionSettings:
     # Optimization techniques
     optimize_transparency: bool = True
     remove_duplicates: bool = True
+    enable_frame_subsampling: bool = True  # Drop frames to preserve resolution
     
-    # Fallback options
+    # External tool integration
+    use_external_tools: bool = True
+    external_tool_settings: Optional[ExternalToolSettings] = None
+    
+    # Fallback options (last resort)
     allow_resize: bool = True
     max_width: int = 1920
     max_height: int = 1080
@@ -56,6 +63,7 @@ class GifOptimizer:
     
     def __init__(self, settings: Optional[CompressionSettings] = None):
         self.settings = settings or CompressionSettings()
+        self.external_tools = ExternalToolManager(self.settings.external_tool_settings)
         
     def optimize_gif(
         self, 
@@ -146,7 +154,27 @@ class GifOptimizer:
             if best_colors == self.settings.min_colors:
                 logger.info(f"Minimum color count reached ({best_colors}), will attempt resizing if needed")
             
-            # Step 4: Create optimized GIF
+            # Step 4: Try frame subsampling before reducing quality
+            if (len(optimized_frames) > 10 and 
+                self.settings.enable_frame_subsampling and
+                best_colors == self.settings.min_colors):
+                
+                # Estimate if frame dropping would help
+                test_frames = optimized_frames[::2]  # Every other frame
+                test_durations = [d * 2 for d in optimized_durations[::2]]  # Double duration
+                
+                test_path = self._create_test_gif(test_frames, test_durations, best_colors)
+                test_size = Path(test_path).stat().st_size
+                
+                if test_size <= self.settings.max_file_size:
+                    optimized_frames = test_frames
+                    optimized_durations = test_durations
+                    stats['techniques_used'].append(f'frame_subsampling ({len(frames)} → {len(optimized_frames)} frames)')
+                    logger.info(f"Frame subsampling successful: {len(frames)} → {len(optimized_frames)} frames")
+                
+                os.unlink(test_path)
+            
+            # Step 5: Create optimized GIF
             temp_path = self._create_optimized_gif(
                 optimized_frames,
                 optimized_durations,
@@ -155,7 +183,28 @@ class GifOptimizer:
             
             temp_size = Path(temp_path).stat().st_size
             
-            # Step 5: If still too large, try resizing
+            # Step 6: Try external tool optimization (Gifsicle) for high-quality compression
+            if (temp_size > self.settings.max_file_size and 
+                self.settings.use_external_tools):
+                
+                external_result = self.external_tools.optimize_with_gifsicle(
+                    temp_path,
+                    temp_path + "_gifsicle.gif",
+                    target_size_mb=self.settings.max_file_size / 1024 / 1024
+                )
+                
+                if external_result.get("success"):
+                    external_path = temp_path + "_gifsicle.gif"
+                    external_size = Path(external_path).stat().st_size
+                    
+                    if external_size < temp_size:
+                        os.unlink(temp_path)  # Remove original
+                        shutil.move(external_path, temp_path)  # Use optimized version
+                        temp_size = external_size
+                        stats['techniques_used'].append(f'gifsicle_optimization (lossy={external_result.get("settings_used", {}).get("lossy", "auto")})')
+                        logger.info(f"Gifsicle optimization successful: {external_result['compression_ratio']:.1f}% additional reduction")
+            
+            # Step 7: If still too large, try resizing (last resort)
             if temp_size > self.settings.max_file_size and self.settings.allow_resize:
                 resized_path = self._resize_gif_if_needed(temp_path, temp_size)
                 if resized_path != temp_path:

@@ -19,12 +19,13 @@ Gifer is a powerful automation tool that captures screenshots from web pages acr
 ### ✨ Key Features
 
 - 🌐 **Automated Screenshot Capture**: Capture screenshots from any URL across date ranges
-- 🎬 **Multiple Output Formats**: Generate GIFs, MP4 videos, or WebM videos
+- 🎬 **Advanced GIF Compression**: State-of-the-art compression with Gifsicle integration
+- 🏷️ **Dynamic Watermarks**: Auto-scaling watermarks that adapt to any image resolution
 - 🗺️ **GPSJAM Specialized**: Advanced handling for GPS interference visualization sites
 - ☁️ **Google Drive Integration**: Automatic upload and sharing capabilities
 - 🔧 **Configurable Rendering**: Advanced page load detection and wait strategies
 - 🚀 **High Performance**: Concurrent processing with rate limiting and retry logic
-- 🎨 **Professional Quality**: Optimized output with watermarking and cropping options
+- 🎨 **Professional Quality**: Intelligent compression preserving quality under 14.99MB
 
 ## 🔄 How It Works
 
@@ -89,9 +90,9 @@ pwsh -ExecutionPolicy Bypass -File scripts/generate_month_gifs.ps1 -StartDate "2
 # Capture screenshots for date range
 python scripts/scrape_screenshots.py --start-date 2025-08-01 --end-date 2025-08-31
 
-# Generate GIF from screenshots (with large watermarks and infinite loop)
-python scripts/make_gif.py --input-dir "converter/images/gpsjam-2025-08" --output-path "results/gifs/august-2025.gif" --seconds-per-image 0.3 --watermark-prefix "GPSJAM"
-# Now uses 60pt font with 2px black stroke by default: "GPSJAM 08-01-25", "GPSJAM 08-02-25", etc.
+# Generate GIF with enhanced compression and dynamic watermarks
+python scripts/make_gif.py --input-dir "converter/images/gpsjam-2025-08" --output-path "results/gifs/august-2025.gif" --seconds-per-image 0.3 --watermark-prefix "GPSJAM" --compress
+# Features: Dynamic watermark sizing, centered placement, intelligent compression under 14.99MB
 ```
 
 #### 🎬 Custom Website Monitoring

@@ -97,7 +97,7 @@ $gifArgs = @(
     "--seconds-per-image", $SecondsPerImage,
     "--order-strategy", "date",
     "--watermark-prefix", "GPSJAM",
-    "--watermark-position", "top-left",
+    "--watermark-position", "center",
     "--compress",
     "--max-size-mb", "14.99"
 )

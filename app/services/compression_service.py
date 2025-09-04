@@ -30,7 +30,8 @@ class CompressionService:
         output_path: Optional[str] = None,
         target_filename: Optional[str] = None,
         max_size_mb: float = 14.99,
-        custom_settings: Optional[Dict[str, Any]] = None
+        custom_settings: Optional[Dict[str, Any]] = None,
+        force_compression: bool = False
     ) -> Dict[str, Any]:
         """
         Compress a GIF file with optional custom settings.
@@ -38,6 +39,41 @@ class CompressionService:
         This is the main entry point for GIF compression within the application.
         """
         try:
+            # Adaptive compression: Check if compression is actually needed
+            input_file_size = Path(input_path).stat().st_size
+            target_size_bytes = max_size_mb * 1024 * 1024
+            
+            if not force_compression and input_file_size <= target_size_bytes:
+                logger.info(f"🎯 Input GIF ({input_file_size / 1024 / 1024:.2f} MB) is already under target size ({max_size_mb:.2f} MB)")
+                logger.info("Skipping compression to preserve maximum quality")
+                
+                # Just copy/rename the file if needed
+                final_output_path = output_path or str(Path(input_path).with_name(f"{Path(input_path).stem}_optimized.gif"))
+                if target_filename:
+                    final_output_path = str(Path(final_output_path).parent / f"{target_filename}.gif")
+                
+                if str(input_path) != str(final_output_path):
+                    import shutil
+                    shutil.copy2(input_path, final_output_path)
+                
+                return {
+                    'success': True,
+                    'skipped_compression': True,
+                    'reason': 'Already under size limit',
+                    'input_file': input_path,
+                    'output_file': final_output_path,
+                    'original_size': input_file_size,
+                    'final_size': input_file_size,
+                    'original_size_mb': input_file_size / 1024 / 1024,
+                    'final_size_mb': input_file_size / 1024 / 1024,
+                    'compression_ratio': 0.0,
+                    'techniques_used': ['no_compression_needed']
+                }
+            
+            # Proceed with compression
+            logger.info(f"📊 Input GIF ({input_file_size / 1024 / 1024:.2f} MB) exceeds target ({max_size_mb:.2f} MB)")
+            logger.info("Applying intelligent compression techniques...")
+            
             # Create custom compression settings if provided
             settings = None
             if custom_settings:
@@ -49,6 +85,8 @@ class CompressionService:
                     enable_lossy=custom_settings.get('enable_lossy', True),
                     optimize_transparency=custom_settings.get('optimize_transparency', True),
                     remove_duplicates=custom_settings.get('remove_duplicates', True),
+                    enable_frame_subsampling=custom_settings.get('enable_frame_subsampling', True),
+                    use_external_tools=custom_settings.get('use_external_tools', True),
                     allow_resize=custom_settings.get('allow_resize', True)
                 )
             

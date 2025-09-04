@@ -79,17 +79,18 @@ def create_gif_from_directory(
                 watermark_text_str = f"{watermark_prefix} {stem}"
                 logger.warning(f"Could not parse date from filename: {stem}, using fallback")
             
-            # Load image and add watermark with large font and stroke (new defaults)
+            # Load image and add watermark with dynamic sizing and optimal placement
             img = Image.open(img_path)
             watermarked_img = watermark_text(
                 img, 
                 watermark_text_str, 
                 watermark_position,
-                opacity=0.8,  # 80% opacity
-                font_size=60,  # 60 point font (default for high visibility)
-                margin_px=15,
-                stroke_width=2,  # 2px black stroke (default for contrast)
-                stroke_color=(0, 0, 0)  # Black stroke
+                opacity=0.4,  # Lower opacity for centered watermarks (less distracting)
+                font_size=None,  # Dynamic sizing based on image dimensions
+                margin_px=20,    # Generous margin for centered placement
+                stroke_width=2,  # 2px black stroke for contrast
+                stroke_color=(0, 0, 0),  # Black stroke
+                scale_factor=0.08  # 8% of image width for optimal scaling
             )
             
             # Save watermarked image to temp directory
@@ -144,17 +145,19 @@ def main():
     parser.add_argument("--drive-folder-id", help="Google Drive folder ID")
     parser.add_argument("--make-public", action="store_true", help="Make Google Drive file public")
     parser.add_argument("--watermark-prefix", help="Add watermark prefix (e.g., 'GPSJAM' will add 'GPSJAM MM/DD' to each image)")
-    parser.add_argument("--watermark-position", default="top-left", choices=["top-left", "top-right", "bottom-left", "bottom-right", "center"], help="Watermark position")
+    parser.add_argument("--watermark-position", default="center", choices=["top-left", "top-right", "bottom-left", "bottom-right", "center"], help="Watermark position (default: center for optimal visibility)")
     
     # Compression options
     parser.add_argument("--compress", action="store_true", help="Compress GIF to stay under size limit")
     parser.add_argument("--max-size-mb", type=float, default=14.99, help="Maximum GIF size in MB (default: 14.99)")
     parser.add_argument("--rename-output", help="Rename output file (without .gif extension)")
+    parser.add_argument("--force-compression", action="store_true", help="Force compression even if GIF is under size limit")
+    parser.add_argument("--preserve-quality", action="store_true", help="Use conservative compression settings to preserve quality")
     
     args = parser.parse_args()
     
     try:
-            gif_path = create_gif_from_directory(
+        gif_path = create_gif_from_directory(
             input_dir=args.input_dir,
             output_path=args.output_path,
             seconds_per_image=args.seconds_per_image,
@@ -172,19 +175,40 @@ def main():
         if args.compress:
             from app.services.compression_service import CompressionService
             
-            logger.info(f"Compressing GIF to stay under {args.max_size_mb:.2f} MB...")
+            logger.info(f"🎬 Analyzing GIF for compression (target: {args.max_size_mb:.2f} MB)...")
             compression_service = CompressionService()
+            
+            # Prepare custom settings based on user preferences
+            custom_settings = {}
+            if args.preserve_quality:
+                custom_settings.update({
+                    'max_colors': 256,
+                    'min_colors': 64,
+                    'enable_lossy': False,
+                    'allow_resize': False,
+                    'use_external_tools': False
+                })
+                logger.info("🎨 Using quality-preserving compression settings")
             
             compression_result = compression_service.compress_gif_file(
                 input_path=gif_path,
                 target_filename=args.rename_output,
-                max_size_mb=args.max_size_mb
+                max_size_mb=args.max_size_mb,
+                custom_settings=custom_settings if custom_settings else None,
+                force_compression=args.force_compression
             )
             
             if compression_result.get('success'):
-                logger.info(f"✅ GIF compressed successfully!")
-                logger.info(f"Size reduction: {compression_result['compression_ratio']:.1f}%")
-                logger.info(f"Final size: {compression_result['final_size_mb']:.2f} MB")
+                if compression_result.get('skipped_compression'):
+                    logger.info(f"✅ {compression_result.get('reason', 'No compression needed')}")
+                    logger.info(f"Maintained original quality at {compression_result['final_size_mb']:.2f} MB")
+                else:
+                    logger.info(f"✅ GIF compressed successfully!")
+                    logger.info(f"Size reduction: {compression_result['compression_ratio']:.1f}%")
+                    logger.info(f"Final size: {compression_result['final_size_mb']:.2f} MB")
+                    techniques = compression_result.get('techniques_used', [])
+                    if techniques:
+                        logger.info(f"Techniques applied: {', '.join(techniques)}")
                 gif_path = compression_result['output_file']
             else:
                 logger.warning(f"⚠️ Compression failed: {compression_result.get('error', 'Unknown error')}")
